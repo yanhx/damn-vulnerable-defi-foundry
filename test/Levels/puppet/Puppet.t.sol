@@ -55,13 +55,15 @@ contract Puppet is Test {
         // Deploy token to be traded in Uniswap
         dvt = new DamnValuableToken();
         vm.label(address(dvt), "DVT");
-
+        
         uniswapV1Factory = UniswapV1Factory(deployCode("./src/build-uniswap/v1/UniswapV1Factory.json"));
 
         // Deploy a exchange that will be used as the factory template
+        console.log("here here");
         uniswapV1ExchangeTemplate = UniswapV1Exchange(deployCode("./src/build-uniswap/v1/UniswapV1Exchange.json"));
 
         // Deploy factory, initializing it with the address of the template exchange
+        
         uniswapV1Factory.initializeFactory(address(uniswapV1ExchangeTemplate));
 
         uniswapExchange = UniswapV1Exchange(uniswapV1Factory.createExchange(address(dvt)));
@@ -100,7 +102,10 @@ contract Puppet is Test {
         /**
          * EXPLOIT START *
          */
-
+        // vm.startPrank(attacker);
+        // uint result = uniswapExchange.tokenToEthSwapInput(ATTACKER_INITIAL_TOKEN_BALANCE, 0, block.timestamp + 1);
+        // console.log(result);
+        // vm.stopPrank();
         /**
          * EXPLOIT END *
          */
